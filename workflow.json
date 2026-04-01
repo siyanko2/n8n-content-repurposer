@@ -1,0 +1,184 @@
+{
+  "name": "AI Content Repurposer - Blog to Social Posts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "repurpose-content",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.blog_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch-blog-post",
+      "name": "Fetch Blog Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.data;\nlet text = html.replace(/<script[^>]*>[\\\\s\\\\S]*?<\\\\/script>/gi, '').replace(/<style[^>]*>[\\\\s\\\\S]*?<\\\\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\\\\s+/g, ' ').trim();\ntext = text.substring(0, 4000);\nreturn [{ json: { blogContent: text } }];"
+      },
+      "id": "extract-text",
+      "name": "Extract Text Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an expert social media content strategist. Your job is to repurpose blog content into engaging social media posts. Always maintain the core message while adapting the tone for each platform."
+            },
+            {
+              "role": "user",
+              "content": "Repurpose the following blog post into social media content. Return a JSON object with these keys: 1) twitter - A concise tweet (max 280 chars) with relevant hashtags. 2) twitter_thread - An array of 3-5 tweets forming a thread. 3) linkedin - A professional LinkedIn post (150-300 words). 4) instagram - An Instagram caption with emojis and 10-15 hashtags. 5) summary - A one-paragraph summary.\n\nBlog content:\n{{ $json.blogContent }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "responseFormat": "json_object"
+        }
+      },
+      "id": "ai-generate-posts",
+      "name": "AI Generate Social Posts",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = JSON.parse($input.first().json.message.content);\nreturn [{ json: { twitter: aiResponse.twitter, twitter_thread: aiResponse.twitter_thread, linkedin: aiResponse.linkedin, instagram: aiResponse.instagram, summary: aiResponse.summary, generated_at: new Date().toISOString(), source_url: $('Webhook Trigger').first().json.body.blog_url } }];"
+      },
+      "id": "format-output",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Blog Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Blog Post": {
+      "main": [
+        [
+          {
+            "node": "Extract Text Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text Content": {
+      "main": [
+        [
+          {
+            "node": "AI Generate Social Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Generate Social Posts": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "ai"
+    },
+    {
+      "name": "content"
+    },
+    {
+      "name": "social-media"
+    },
+    {
+      "name": "automation"
+    }
+  ]
+}
