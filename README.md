@@ -56,6 +56,6 @@ MIT — free to use, modify, and share.
 ## Author
 
 **Ivan Siyanko** — AI Automator
-Website: siyanko.com | GitHub: @siyanko2
+Website: siyanko.com | GitHub: @ivansiyanko
 
 Built with n8n — the workflow automation platform
